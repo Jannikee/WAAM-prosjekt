@@ -1,0 +1,29 @@
+﻿Fil,Gruppe,Hjorne,Rett_hastighet_mm_s,Hjorne_hastighet_mm_s,Materialendring_prosent,Onsket_faktisk_hjornefart_mm_s,Navaerende_programmert_fart_mm_s,Eksperimentelt_programforslag_mm_s,Begrenset_forsoksfart_mm_s,Merknad
+L_80_7_1mm_Lag_01.csv,L,1,7.01,5.22,34.3,7.01,7.00,9.40,9.40,Sjekk manuelt – stor økning
+L_80_7_1mm_Lag_02.csv,L,1,7.01,5.34,42.0,7.58,7.00,9.94,9.94,Sjekk manuelt – stor økning
+L_80_7_1mm_Lag_03.csv,L,1,7.00,6.27,9.1,6.84,7.00,7.64,7.64,Foreløpig anslag
+L_80_7_1mm_Lag_04.csv,L,1,7.00,6.64,4.9,6.96,7.00,7.34,7.34,Foreløpig anslag
+L_80_7_1mm_Lag_05.csv,L,1,7.03,5.35,32.3,7.08,7.00,9.26,9.26,Sjekk manuelt – stor økning
+L_80_7_1mm_Lag_06.csv,L,1,7.02,4.88,50.0,7.32,7.00,10.50,10.50,Sjekk manuelt – stor økning
+L_80_7_1mm_Lag_07.csv,L,1,7.02,5.29,36.4,7.22,7.00,9.55,9.55,Sjekk manuelt – stor økning
+L_80_7_1mm_Lag_08.csv,L,1,7.03,5.92,20.6,7.14,7.00,8.44,8.44,Sjekk manuelt – stor økning
+L_80_7_1mm_Lag_09.csv,L,1,7.01,6.61,4.4,6.90,7.00,7.31,7.31,Foreløpig anslag
+L_80_7_1mm_Lag_10.csv,L,1,7.02,6.31,10.7,6.98,7.00,7.75,7.75,Sjekk manuelt – stor økning
+L_80_7_1mm_Lag_11.csv,L,1,7.02,5.46,25.2,6.83,7.00,8.76,8.76,Sjekk manuelt – stor økning
+L_80_7_1mm_Lag_12.csv,L,1,7.01,4.92,35.8,6.68,7.00,9.51,9.51,Sjekk manuelt – stor økning
+L_80_7_1mm_Lag_13.csv,L,1,7.03,5.20,38.5,7.20,7.00,9.70,9.70,Sjekk manuelt – stor økning
+L_80_7_1mm_Lag_14.csv,L,1,6.99,6.04,12.1,6.77,7.00,7.85,7.85,Sjekk manuelt – stor økning
+L_80_7_1mm_Lag_15.csv,L,1,7.03,6.68,5.6,7.05,7.00,7.39,7.39,Foreløpig anslag
+U_80_7_50pct_1mm_Lag_01.csv,U 50pct,1,7.01,1.67,335.4,7.27,7.00,30.48,30.48,Sjekk manuelt – stor økning
+U_80_7_50pct_1mm_Lag_02.csv,U 50pct,1,7.01,1.77,283.8,6.79,7.00,26.87,26.87,Sjekk manuelt – stor økning
+U_80_7_50pct_1mm_Lag_03.csv,U 50pct,1,7.02,1.65,335.6,7.19,7.00,30.49,30.49,Sjekk manuelt – stor økning
+U_80_7_50pct_1mm_Lag_04.csv,U 50pct,1,7.02,1.48,356.2,6.75,7.00,31.93,31.93,Sjekk manuelt – stor økning
+U_80_7_50pct_1mm_Lag_05.csv,U 50pct,1,7.02,1.81,266.4,6.63,7.00,25.65,25.65,Sjekk manuelt – stor økning
+U_80_7_50pct_1mm_Lag_06.csv,U 50pct,1,7.02,1.81,259.8,6.51,7.00,25.19,25.19,Sjekk manuelt – stor økning
+U_80_7_50pct_1mm_Lag_07.csv,U 50pct,1,6.99,2.00,257.2,7.14,7.00,25.00,25.00,Sjekk manuelt – stor økning
+U_80_7_50pct_1mm_Lag_08.csv,U 50pct,1,7.01,2.53,184.4,7.19,7.00,19.91,19.91,Sjekk manuelt – stor økning
+U_80_7_70pct_1mm_Lag_01.csv,U 70pct,1,7.00,1.63,346.3,7.28,7.00,31.24,31.24,Sjekk manuelt – stor økning
+U_80_7_70pct_1mm_Lag_02.csv,U 70pct,1,7.01,1.70,307.4,6.93,7.00,28.52,28.52,Sjekk manuelt – stor økning
+U_80_7_70pct_1mm_Lag_03.csv,U 70pct,1,7.01,2.08,246.8,7.21,7.00,24.28,24.28,Sjekk manuelt – stor økning
+U_80_7_70pct_1mm_Lag_04.csv,U 70pct,1,7.01,2.00,255.4,7.11,7.00,24.88,24.88,Sjekk manuelt – stor økning
+U_80_7_70pct_1mm_Lag_05.csv,U 70pct,1,7.01,2.49,163.8,6.57,7.00,18.47,18.47,Sjekk manuelt – stor økning

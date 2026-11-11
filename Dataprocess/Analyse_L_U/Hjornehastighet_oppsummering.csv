@@ -1,0 +1,4 @@
+﻿Gruppe,Antall_lag,Gjennomsnitt_materialendring_pct,Median_materialendring_pct,Gjennomsnitt_onsket_faktisk_fart_mm_s,Gjennomsnitt_eksperimentelt_programforslag_mm_s,Merknad
+L,15,24.1,25.2,7.04,8.69,Kun estimat – ikke validert på robot
+U 50pct,8,284.8,275.1,6.94,26.94,Kun estimat – ikke validert på robot
+U 70pct,5,264.0,255.4,7.02,25.48,Kun estimat – ikke validert på robot
