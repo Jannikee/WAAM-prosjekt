@@ -22,7 +22,7 @@ import csv
 import shutil
 from dataclasses import dataclass
 from datetime import datetime
-from math import ceil, hypot
+from math import acos, asin, atan2, ceil, cos, degrees, hypot, pi, radians, sin, sqrt, tan
 from pathlib import Path
 
 # ============================================================
@@ -87,6 +87,18 @@ RX, RY, RZ = 0.0, 0.0, 45.0
 VINKEL_RETT = (RX, RY, RZ)
 VINKEL_L = (RX, RY, RZ)
 VINKEL_U = (RX, RY, RZ)
+
+# BRENNERVINKEL I FORHOLD TIL KJØRERETNINGEN (grader). 0 og 0 = loddrett, som før.
+# Vinklene følger banen og speiles automatisk når retningen snur (VEKSLENDE).
+SIDEVINKEL = 0.0      # + = brenneren lener ut mot siden UTEN sveis (høyre i
+                      #     kjøreretningen på lag 1), buen peker inn mot nabostrengen.
+                      # - = motsatt side
+KJOREVINKEL = 0.0     # + = stikkende (buen peker framover), - = slepende
+# Ved hjørner/svinger reises brenneren opp til loddrett, og legges ned igjen
+# på andre siden. Den står loddrett i selve hjørnet.
+OPP_VED_L = True      # reis opp ved 90-graders hjørner
+OPP_VED_U = True      # reis opp gjennom U-svingene (loddrett gjennom hele svingen)
+OPP_NED_MM = 10.0     # mm brenneren bruker på å reise seg før / legge seg ned etter
 
 BASE_DIR = Path(__file__).resolve().parent
 MAKRO = f"MACRO1 MJ#(0) {PROGRAM}"
@@ -294,6 +306,117 @@ def innstillinger_for(sone):
 
 
 # ============================================================
+# BRENNERVINKEL: vipp basisorienteringen relativt til kjøreretningen
+# ============================================================
+# Antar at RX, RY, RZ er Yaskawa-vinkler i USER-rammen (R = Rz*Ry*Rx) og at
+# USER-Z peker opp (lagene bygges i +Z). Sjekk alltid uten bue først.
+
+def _matmul(A, B):
+    return [[sum(A[i][k] * B[k][j] for k in range(3)) for j in range(3)] for i in range(3)]
+
+
+def _rot_fra_euler(rx, ry, rz):
+    a, b, c = radians(rx), radians(ry), radians(rz)
+    Rx = [[1, 0, 0], [0, cos(a), -sin(a)], [0, sin(a), cos(a)]]
+    Ry = [[cos(b), 0, sin(b)], [0, 1, 0], [-sin(b), 0, cos(b)]]
+    Rz = [[cos(c), -sin(c), 0], [sin(c), cos(c), 0], [0, 0, 1]]
+    return _matmul(Rz, _matmul(Ry, Rx))
+
+
+def _euler_fra_rot(R):
+    ry = asin(max(-1.0, min(1.0, -R[2][0])))
+    return tuple(round(degrees(v), 4) + 0.0
+                 for v in (atan2(R[2][1], R[2][2]), ry, atan2(R[1][0], R[0][0])))
+
+
+def _rodrigues(akse, vinkel):
+    n = sqrt(sum(v * v for v in akse))
+    if n < 1e-12 or abs(vinkel) < 1e-12:
+        return [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+    x, y, z = (v / n for v in akse)
+    c, s, C = cos(vinkel), sin(vinkel), 1 - cos(vinkel)
+    return [[c + x*x*C, x*y*C - z*s, x*z*C + y*s],
+            [y*x*C + z*s, c + y*y*C, y*z*C - x*s],
+            [z*x*C - y*s, z*y*C + x*s, c + z*z*C]]
+
+
+def brennerretning(psi, kjore, side):
+    """Enhetsvektor fra brenner mot arbeidsstykket (USER). psi = kjøreretning i XY."""
+    t = (cos(psi), sin(psi))
+    venstre = (-sin(psi), cos(psi))
+    k, s = tan(radians(kjore)), tan(radians(side))
+    w = (k * t[0] + s * venstre[0], k * t[1] + s * venstre[1], -1.0)
+    n = sqrt(sum(v * v for v in w))
+    return tuple(v / n for v in w)
+
+
+def vippet_vinkel(basis, psi, kjore, side):
+    """(RX, RY, RZ) for basisorienteringen vippet til ønsket brennerretning."""
+    if abs(kjore) < 1e-9 and abs(side) < 1e-9:
+        return basis
+    w0, w = (0.0, 0.0, -1.0), brennerretning(psi, kjore, side)
+    akse = (w0[1]*w[2] - w0[2]*w[1], w0[2]*w[0] - w0[0]*w[2], w0[0]*w[1] - w0[1]*w[0])
+    vinkel = acos(max(-1.0, min(1.0, sum(a * b for a, b in zip(w0, w)))))
+    return _euler_fra_rot(_matmul(_rodrigues(akse, vinkel), _rot_fra_euler(*basis)))
+
+
+def _retning(a, b):
+    d = avstand(a, b)
+    return ((b[0] - a[0]) / d, (b[1] - a[1]) / d)
+
+
+def hjorner_langs_banen(segmenter):
+    """[(s_senter, dpsi, halvbredde, type)] for hver retningsendring langs banen."""
+    start, s = [], 0.0
+    for seg in segmenter:
+        start.append(s)
+        pts = [seg.fra, *seg.sving, seg.til]
+        s += sum(avstand(a, b) for a, b in zip(pts, pts[1:]))
+    ut = []
+    for i, seg in enumerate(segmenter):
+        if seg.typ == "u":
+            pts = [seg.fra, *seg.sving, seg.til]
+            lengde = sum(avstand(a, b) for a, b in zip(pts, pts[1:]))
+            t_inn = _retning(segmenter[i-1].fra, segmenter[i-1].til) if i > 0 else _retning(seg.fra, seg.sving[0])
+            p2 = seg.sving[1]
+            kryss = t_inn[0] * (p2[1] - seg.fra[1]) - t_inn[1] * (p2[0] - seg.fra[0])
+            ut.append((start[i] + lengde / 2, pi if kryss > 0 else -pi, lengde / 2, "U"))
+        elif i + 1 < len(segmenter) and ulike_retninger(seg, segmenter[i + 1]):
+            a, b = _retning(seg.fra, seg.til), _retning(segmenter[i+1].fra, segmenter[i+1].til)
+            ut.append((start[i + 1], atan2(a[0]*b[1] - a[1]*b[0], a[0]*b[0] + a[1]*b[1]), 0.0, "L"))
+    return ut
+
+
+def brennervinkler(segmenter, side_fortegn=1):
+    """(psi, kjørevinkel, sidevinkel) for hvert punkt i baneinstruksjoner(segmenter).
+
+    Brenneren reises lineært opp til loddrett over OPP_NED_MM før hvert hjørne
+    (OPP_VED_L / OPP_VED_U), står loddrett i hjørnet/gjennom svingen, og
+    legges ned igjen over OPP_NED_MM etterpå. Kjøreretningen dreies gradvis
+    gjennom hjørnet slik at en eventuell vinkel som beholdes følger banen.
+    """
+    hjorner = hjorner_langs_banen(segmenter)
+    psi0 = atan2(*reversed(_retning(segmenter[0].fra, segmenter[0].til)))
+
+    def ved(s):
+        psi, faktor = psi0, 1.0
+        for c, dpsi, h, typ in hjorner:
+            bredde = h + max(OPP_NED_MM, 1e-6)
+            psi += dpsi * min(1.0, max(0.0, (s - (c - bredde)) / (2 * bredde)))
+            if (typ == "L" and OPP_VED_L) or (typ == "U" and OPP_VED_U):
+                faktor = min(faktor, 1.0 if OPP_NED_MM <= 0 and abs(s - c) > h
+                             else min(1.0, max(0.0, (abs(s - c) - h) / max(OPP_NED_MM, 1e-6))))
+        return psi, KJOREVINKEL * faktor, SIDEVINKEL * side_fortegn * faktor
+
+    ut, s, forrige = [], 0.0, segmenter[0].fra
+    for xy, *_ in baneinstruksjoner(segmenter):
+        s += avstand(forrige, xy)
+        forrige = xy
+        ut.append(ved(s))
+    return ved(0.0), ut
+
+
+# ============================================================
 # XY-FORHÅNDSVISNING (ingen JBI)
 # ============================================================
 
@@ -321,6 +444,17 @@ def vis_forhandsvisning(segmenter, filbane=None):
                     color="darkorange", lw=2.7)
             ax.scatter([p[0] for p in seg.sving], [p[1] for p in seg.sving],
                        color="darkorange", s=22, zorder=4)
+
+    if SIDEVINKEL or KJOREVINKEL:
+        # Piler: hvor buen peker sett ovenfra (lag 1). Lengde ~ vinkelen.
+        _, vinkler = brennervinkler(segmenter, 1)
+        for (xy, *_), (psi, kjore, side) in zip(baneinstruksjoner(segmenter), vinkler):
+            w = brennerretning(psi, kjore, side)
+            if abs(w[0]) + abs(w[1]) > 1e-6:
+                ax.annotate("", xy=(xy[0] + 7 * w[0], xy[1] + 7 * w[1]), xytext=xy,
+                            arrowprops=dict(arrowstyle="->", lw=0.9, color="crimson"))
+        ax.plot([], [], color="crimson",
+                label=f"Buens retning (side {SIDEVINKEL:g}°, kjøre {KJOREVINKEL:g}°)")
 
     start, slutt = segmenter[0].fra, segmenter[-1].til
     ax.scatter([start[0]], [start[1]], color="green", s=65, zorder=6, label="Start")
@@ -379,27 +513,36 @@ def skriv_jbi(segmenter):
         if not TEST_UTEN_SVEIS:
             instruksjoner.extend(["ARCOF", f"TIMER T={WAITTIME}"])
 
+    def lagvinkler(deler, lag):
+        """Startvinkel + vinkel per punkt. Sidevinkel speiles på lag som kjøres motsatt vei."""
+        fortegn = -1 if (VEKSLENDE and lag % 2 == 1) else 1
+        (psi0, k0, s0), per_punkt = brennervinkler(deler, fortegn)
+        return vippet_vinkel(VINKEL_RETT, psi0, k0, s0), per_punkt
+
     first = segmenter[0].fra
+    v_start, _ = lagvinkler(segmenter, 0)
     flytt(*STARTPOS, bevegelse="MOVJ")
-    flytt(first[0], first[1], STARTPOS[2], bevegelse="MOVJ")
-    flytt(first[0], first[1], Z_START, fart=FLYTTHASTIGHET)
+    flytt(first[0], first[1], STARTPOS[2], bevegelse="MOVJ", vinkel=v_start)
+    flytt(first[0], first[1], Z_START, fart=FLYTTHASTIGHET, vinkel=v_start)
     siste_xy = first
 
     for lag in range(ANTALL_LAG):
         z = Z_START + lag * LAGHOYDE
         deler = snu_segmenter(segmenter) if (VEKSLENDE and lag % 2 == 1) else segmenter
         start_xy = deler[0].fra
+        v_start, vinkler = lagvinkler(deler, lag)
         if lag > 0:
             if VEKSLENDE:
-                flytt(start_xy[0], start_xy[1], z, fart=FLYTTHASTIGHET)
+                flytt(start_xy[0], start_xy[1], z, fart=FLYTTHASTIGHET, vinkel=v_start)
             else:
                 flytt(siste_xy[0], siste_xy[1], STARTPOS[2], fart=FLYTTHASTIGHET)
-                flytt(start_xy[0], start_xy[1], STARTPOS[2], fart=FLYTTHASTIGHET)
-                flytt(start_xy[0], start_xy[1], z, fart=FLYTTHASTIGHET)
+                flytt(start_xy[0], start_xy[1], STARTPOS[2], fart=FLYTTHASTIGHET, vinkel=v_start)
+                flytt(start_xy[0], start_xy[1], z, fart=FLYTTHASTIGHET, vinkel=v_start)
         instruksjoner.append(f"*LAG{lag+1}")
         bue_paa()
-        for xy, bevegelse, sone, er_l_punkt in baneinstruksjoner(deler):
+        for (xy, bevegelse, sone, er_l_punkt), (psi, kjore, side) in zip(baneinstruksjoner(deler), vinkler):
             fart, vinkel = innstillinger_for(sone)
+            vinkel = vippet_vinkel(vinkel, psi, kjore, side)
             pl = PL_L if er_l_punkt else None
             flytt(xy[0], xy[1], z, bevegelse=bevegelse,
                   fart=fart, vinkel=vinkel, pl=pl)
@@ -474,6 +617,10 @@ def samle_parametere(segmenter):
         ("Sveiseprosess", "WAITTIME (s)", WAITTIME),
         ("Robot", "USER / TOOL", f"{USER} / {TOOL}"),
         ("Robot", "RX, RY, RZ", f"{RX}, {RY}, {RZ}"),
+        ("Brennervinkel", "SIDEVINKEL (grader)", SIDEVINKEL),
+        ("Brennervinkel", "KJOREVINKEL (grader)", KJOREVINKEL),
+        ("Brennervinkel", "OPP_VED_L / OPP_VED_U", f"{OPP_VED_L} / {OPP_VED_U}"),
+        ("Brennervinkel", "OPP_NED_MM", OPP_NED_MM),
         ("Robot", "STARTPOS", STARTPOS),
         ("Robot", "SLUTTPOS", SLUTTPOS),
     ]
@@ -588,7 +735,18 @@ def skriv_oversikt(segmenter, jbi_instruksjoner=None, bildefil=None):
         "Vekslende": "Ja" if VEKSLENDE else "Nei",
         "Sveiselengde totalt mm": round(sveiselengde, 1),
         "Oversiktsfil": txt.name,
+        "Sidevinkel grader": SIDEVINKEL,
+        "Kjorevinkel grader": KJOREVINKEL,
     }
+    if not ny:
+        # Eldre logg uten vinkelkolonnene: skriv fila på nytt med de nye kolonnene
+        with csv_fil.open(encoding="utf-8-sig", newline="") as fh:
+            gamle = list(csv.DictReader(fh, delimiter=";"))
+        if gamle and set(rad) - set(gamle[0]):
+            with csv_fil.open("w", encoding="utf-8-sig", newline="") as fh:
+                w = csv.DictWriter(fh, fieldnames=list(rad), delimiter=";", restval="")
+                w.writeheader()
+                w.writerows({k: r.get(k, "") for k in rad} for r in gamle)
     with csv_fil.open("a", encoding="utf-8-sig", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=list(rad), delimiter=";")
         if ny:
