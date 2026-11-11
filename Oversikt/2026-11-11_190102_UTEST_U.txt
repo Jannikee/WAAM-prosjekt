@@ -1,0 +1,70 @@
+OVERSIKT UTEST
+============================================================
+Dato:            2026-11-11 19:01:02
+Type sveis:      U-vegg (180 grader)
+Jobbnavn (JBI):  UTEST
+JBI generert:    Ja
+Uten sveis:      Nei
+
+RESULTAT
+------------------------------------------------------------
+Antall lag:                 15
+Teoretisk veggehøyde:       21.0 mm (15 x 1.4 mm)
+Sveiselengde per lag:       208.1 mm
+Sveiselengde totalt:        3121.4 mm
+Bevegelser per lag:         40 MOVL + 3 MOVC
+Grov sveisetid (kun bane):  7.3 min (+ 15.0 min ventetid etter ARCOF)
+Start XY (lag 1):           (225.0, 220.0)
+Slutt XY (lag 1):           (225.0, 225.5)
+Posisjoner i JBI:           664
+ARCON / ARCOF:              15 / 15
+
+PARAMETERE
+------------------------------------------------------------
+[Jobb]
+  JOBBNAVN                     UTEST
+  FORM                         U (U-vegg (180 grader))
+  LAG_JBI                      True
+  TEST_UTEN_SVEIS              False
+[Geometri]
+  LENGDE (mm)                  100.0
+[Lag]
+  ANTALL_LAG                   15
+  LAGHOYDE (mm)                1.4
+  VEKSLENDE                    True
+  X_START, Y_START, Z_START    225.0, 220.0, 75.0
+  FLERE_PUNKTER                True
+  PUNKTAVSTAND (mm)            5.0
+[Hastighet]
+  SVEISEHASTIGHET (mm/s)       7.0
+  HASTIGHET_L (mm/s)           7.0
+  HASTIGHET_U (mm/s)           11.0
+  FLYTTHASTIGHET (mm/s)        11.0
+  LEDDHASTIGHET (VJ %)         0.78
+  SONE_L_MM / SONE_U_MM        10.0 / 3.0
+  PL_L                         1
+  ACC / DEC                    20 / 20
+[Streng]
+  BEADWIDTH (mm)               11
+  OVERLAP                      0.5
+  Senteravstand (mm)           5.5
+[Sveiseprosess]
+  PROGRAM                      ARGF2
+  WAITTIME (s)                 60
+[Robot]
+  USER / TOOL                  9 / 1
+  RX, RY, RZ                   0.0, 0.0, 45.0
+  STARTPOS                     (225.0, 185.0, 200.0)
+  SLUTTPOS                     (225.0, 185.0, 200.0)
+
+BANE (lag 1, U-sving vises med MOVC-punkter)
+------------------------------------------------------------
+  1: linje (225.0, 220.0) -> (325.0, 220.0)
+  2: u     (325.0, 220.0) -> (325.0, 225.5)   via (326.375, 221.375) (327.750, 224.125)
+  3: linje (325.0, 225.5) -> (225.0, 225.5)
+
+Notater (fyll inn selv etter sveising):
+  
+  
+
+MERK: Banen er generert, ikke validert på robot.

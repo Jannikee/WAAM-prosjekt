@@ -1,0 +1,10 @@
+﻿Dato;Jobbnavn;Type;JBI;Uten sveis;Antall lag;Laghoyde mm;Sveisehastighet mm/s;Hastighet L mm/s;Hastighet U mm/s;Beadwidth mm;Overlap;Senteravstand mm;Lengde mm;Program;Vekslende;Sveiselengde totalt mm;Oversiktsfil
+2026-11-10 13:49:54;UTEST;U-vegg (180 grader);Ja;Nei;15;1.4;7.0;7.0;11.0;11.0;0.5;5.5;100.0;ARGF2;Ja;3121.4;2026-11-10_134954_UTEST_U.txt
+2026-11-11 17:46:46;UTEST;U-vegg (180 grader);Ja;Nei;15;1.4;7.0;7.0;11.0;11.0;0.5;5.5;100.0;ARGF2;Ja;3121.4;2026-11-11_174646_UTEST_U.txt
+2026-11-11 17:57:33;UTEST;U-vegg (180 grader);Ja;Nei;15;1.4;7.0;7.0;11.0;7.5;0.5;3.75;100.0;ARGF2;Ja;3082.8;2026-11-11_175733_UTEST_U.txt
+2026-11-11 18:05:07;UTEST;U-vegg (180 grader);Ja;Nei;15;1.4;7.0;7.0;11.0;7.5;0.5;3.75;100.0;ARGF2;Ja;3082.8;2026-11-11_180507_UTEST_U.txt
+2026-11-11 18:10:30;UTEST;U-vegg (180 grader);Ja;Nei;15;1.4;7.0;7.0;11.0;11;0.5;5.5;100.0;ARGF2;Ja;3121.4;2026-11-11_181030_UTEST_U.txt
+2026-11-11 18:57:41;UTEST;U-vegg (180 grader);Ja;Nei;15;1.4;7.0;7.0;11.0;11;0.5;5.5;100.0;ARGF2;Ja;3121.4;2026-11-11_185741_UTEST_U.txt
+2026-11-11 18:57:57;UTEST;U-vegg (180 grader);Ja;Nei;15;1.4;7.0;7.0;11.0;11;0.5;5.5;100.0;ARGF2;Ja;3121.4;2026-11-11_185757_UTEST_U.txt
+2026-11-11 19:01:02;UTEST;U-vegg (180 grader);Ja;Nei;15;1.4;7.0;7.0;11.0;11;0.5;5.5;100.0;ARGF2;Ja;3121.4;2026-11-11_190102_UTEST_U.txt
+2026-11-11 19:03:21;UTEST;U-vegg (180 grader);Ja;Nei;15;1.4;7.0;7.0;11.0;11;0.5;5.5;100.0;ARGF2;Ja;3121.4;2026-11-11_190321_UTEST_U.txt
