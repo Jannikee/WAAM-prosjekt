@@ -31,11 +31,7 @@ import csv
 import shutil
 from dataclasses import dataclass
 from datetime import datetime
-<<<<<<< HEAD
-from math import atan2, ceil, cos, hypot, pi, sin
-=======
 from math import acos, asin, atan2, ceil, cos, degrees, hypot, pi, radians, sin, sqrt, tan
->>>>>>> 696042a56a036a7e70047edaad82a76a0f70e5d1
 from pathlib import Path
 
 # ============================================================
@@ -92,6 +88,14 @@ I_BUNNLENGDE = None          # None = samme som T_TOPPLENGDE; bunnhatten sentrer
 # Sveiseprosess og robot
 PROGRAM = "ARGF2"
 WAITTIME = 30                 # sekunder etter ARCOF
+
+# Vifte og ventetid mellom lag (rekkefolge etter ARCOF: WAITTIME -> vifte paa -> VIFTE_TID -> vent IN# -> vifte av)
+VIFTE_MODUS = "av"            # "av" = ingen vifte, "hvert_lag" = etter hvert lag, "kun_slutt" = bare etter siste lag
+VIFTE_UTGANG = 9              # OT#(n) som styrer viften
+VIFTE_TID = 50                # sekunder viften gaar etter laget
+VENT_TEMP = False             # True = vent paa IN#(VENT_INNGANG)=ON etter hvert lag (ikke etter siste)
+VENT_INNGANG = 17             # IN#(n) som er ON naar plata er under temperaturgrensen (nivaasignal)
+VENT_TIMEOUT = 120            # s: gaar videre selv om signalet uteblir (sikring)
 USER = 1
 TOOL = 1
 FLYTTHASTIGHET = 11.0       # mm/s, bevegelse uten bue
@@ -587,9 +591,18 @@ def skriv_jbi(segmenter):
         if not TEST_UTEN_SVEIS:
             instruksjoner.extend([MAKRO, "ARCON"])
 
-    def bue_av():
-        if not TEST_UTEN_SVEIS:
-            instruksjoner.extend(["ARCOF", f"TIMER T={WAITTIME}"])
+    def bue_av(siste=False):
+        if TEST_UTEN_SVEIS:
+            return
+        instruksjoner.extend(["ARCOF", f"TIMER T={WAITTIME}"])
+        vifte = VIFTE_MODUS == "hvert_lag" or (VIFTE_MODUS == "kun_slutt" and siste)
+        if vifte:
+            instruksjoner.extend([f"DOUT OT#({VIFTE_UTGANG}) ON", f"TIMER T={VIFTE_TID:.2f}"])
+        if VENT_TEMP and not siste:
+            # WAIT sjekker tilstanden: er plata allerede under grensen (signal ON) gaar den videre med en gang
+            instruksjoner.append(f"WAIT IN#({VENT_INNGANG})=ON T={VENT_TIMEOUT:.2f}")
+        if vifte:
+            instruksjoner.append(f"DOUT OT#({VIFTE_UTGANG}) OFF")
 
     def lagvinkler(deler, lag):
         """Startvinkel + vinkel per punkt. Sidevinkel speiles på lag som kjøres motsatt vei."""
@@ -597,6 +610,8 @@ def skriv_jbi(segmenter):
         (psi0, k0, s0), per_punkt = brennervinkler(deler, fortegn)
         return vippet_vinkel(VINKEL_RETT, psi0, k0, s0), per_punkt
 
+    if VIFTE_MODUS != "av" and not TEST_UTEN_SVEIS:
+        instruksjoner.append(f"DOUT OT#({VIFTE_UTGANG}) OFF")
     first = segmenter[0].fra
     v_start, _ = lagvinkler(segmenter, 0)
     flytt(*STARTPOS, bevegelse="MOVJ")
@@ -624,7 +639,7 @@ def skriv_jbi(segmenter):
             pl = PL_L if er_l_punkt else None
             flytt(xy[0], xy[1], z, bevegelse=bevegelse,
                   fart=fart, vinkel=vinkel, pl=pl)
-        bue_av()
+        bue_av(siste=(lag == ANTALL_LAG - 1))
         siste_xy = deler[-1].til
 
     flytt(siste_xy[0], siste_xy[1], SLUTTPOS[2], fart=FLYTTHASTIGHET)
@@ -693,6 +708,8 @@ def samle_parametere(segmenter):
         ("Streng", "Senteravstand (mm)", round(senteravstand(), 3)),
         ("Sveiseprosess", "PROGRAM", PROGRAM),
         ("Sveiseprosess", "WAITTIME (s)", WAITTIME),
+        ("Vifte/vent", "VIFTE_MODUS / VIFTE_TID (s)", f"{VIFTE_MODUS} / {VIFTE_TID}"),
+        ("Vifte/vent", "VENT_TEMP / IN# / timeout (s)", f"{VENT_TEMP} / {VENT_INNGANG} / {VENT_TIMEOUT}"),
         ("Robot", "USER / TOOL", f"{USER} / {TOOL}"),
         ("Robot", "RX, RY, RZ", f"{RX}, {RY}, {RZ}"),
         ("Brennervinkel", "SIDEVINKEL (grader)", SIDEVINKEL),
