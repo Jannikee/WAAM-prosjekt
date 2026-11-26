@@ -158,6 +158,8 @@ def analyser(fil, hjorner):
                          if -10 <= (t - t0).total_seconds() <= buetid + 60]
     rad["_kurver"] = kurver
     rad["_buetid"] = buetid
+    rad["_bue"] = (t0, t1)
+    rad["_serie"] = les_temperatur(fil)
     print(f"  {fil.name}: {rad['Strom_A']} A, {rad['Spenning_V']} V, WFS {rad['WFS_m_min']}, "
           f"{rad['Effekt_kW']} kW, {rad['Varmetilforsel_kJ_mm']} kJ/mm, dekning {rad['Dekning_pct']:g} %")
     if dekning < 80:
@@ -272,6 +274,40 @@ def lag_figurer(grupper, oversikt):
         fig.savefig(RAPPORT / f"{slug}.png", dpi=150)
         plt.close(fig)
 
+    # Temperatur gjennom hele testen: alle lag etter hverandre pa en tidsakse
+    for (mappe, test), rader in sorted(grupper.items()):
+        rader = sorted(rader, key=lambda q: q["Lag"])
+        kanaler = sorted({k for q in rader for k in q.get("_serie", {})})
+        if not kanaler:
+            continue
+        t_null = min(q["_bue"][0] for q in rader)
+        sek = lambda t: (t - t_null).total_seconds() / 60
+        fig, ax = plt.subplots(figsize=(13, 4.5))
+        for kanal in kanaler:
+            xs, ys = [], []
+            for q in rader:
+                serie = q.get("_serie", {}).get(kanal)
+                if serie:
+                    xs += [sek(t) for t, _ in serie]
+                    ys += [v for _, v in serie]
+            if xs:
+                o = sorted(range(len(xs)), key=lambda i: xs[i])
+                ax.plot([xs[i] for i in o], [ys[i] for i in o], linewidth=1.2, label=KANALNAVN.get(kanal, kanal))
+        topp = ax.get_ylim()[1]
+        for q in rader:
+            a, b = (sek(t) for t in q["_bue"])
+            ax.axvspan(a, b, color="orange", alpha=0.15)
+            ax.text((a + b) / 2, topp, f"lag {q['Lag']}", ha="center", va="bottom", fontsize=8)
+        ax.set_xlabel("Minutter fra forste buestart")
+        ax.set_ylabel("Temperatur (C)")
+        ax.set_title(f"{test}: temperatur gjennom lagene (oransje = bue pa)", pad=18)
+        ax.grid(alpha=0.25)
+        ax.legend(fontsize=8)
+        fig.tight_layout()
+        slug = "_".join([p for p in Path(mappe).parts if p != "."] + [test])
+        fig.savefig(RAPPORT / f"{slug}_temperaturforlop.png", dpi=150)
+        plt.close(fig)
+
     if len(oversikt) > 1:
         paneler2 = list(paneler)
         if any(o.get("Temp_maks_C_c1") is not None for o in oversikt):
@@ -279,9 +315,11 @@ def lag_figurer(grupper, oversikt):
         rader_n = 2 if len(paneler2) <= 6 else 3
         fig, axes = plt.subplots(rader_n, 3, figsize=(14, 3.5 * rader_n))
         for ax, (key, _, tittel) in zip(axes.flat, paneler2):
-            ax.bar(range(len(oversikt)), [o.get(key) or 0 for o in oversikt])
-            ax.set_xticks(range(len(oversikt)))
-            ax.set_xticklabels([o["Test"] for o in oversikt], rotation=60, ha="right", fontsize=7)
+            # tester uten verdi (f.eks. uten temperatur) tas ikke med i panelet
+            dat = [o for o in oversikt if o.get(key) is not None] if key.startswith("Temp_") else oversikt
+            ax.bar(range(len(dat)), [o.get(key) or 0 for o in dat])
+            ax.set_xticks(range(len(dat)))
+            ax.set_xticklabels([o["Test"] for o in dat], rotation=60, ha="right", fontsize=7)
             ax.set_title(tittel, fontsize=10)
             ax.grid(axis="y", alpha=0.25)
         for ax in list(axes.flat)[len(paneler2):]:
