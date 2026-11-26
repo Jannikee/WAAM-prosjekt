@@ -24,6 +24,8 @@ MIN_BEVEGELSE_MM_S = 0.5
 FJERN_GJENTATTE_W = True    # ~30 % av W-maalingene er kopier av forrige (sveisemaskinen
                             # oppdaterer saktere enn 4 Hz). True = bruk bare nye verdier.
 EFTER_BUE_S = 30.0          # temperaturtoppen kommer noen sekunder ETTER at buen stopper
+TEMP_KANALER = ["c1"]       # kanaler som brukes. Ubrukte kanaler star ofte som 0 i loggen.
+                            # Legg til f.eks. "c2" naar du kobler paa flere termoelementer.
 # Hvor sitter termoelementene? Navnet vises i figurene. Ukjente kanaler heter bare "c<n>".
 KANALNAVN = {
     "c1": "c1 substrat (midt paa plata)",
@@ -32,7 +34,7 @@ KANALNAVN = {
 }
 # ================================================================
 
-TEMP_KOLONNER = [f"{p}_c{k}" for k in range(1, 9) for p in ("Temp_start_C", "Temp_maks_C")]
+TEMP_KOLONNER = [f"{p}_{k}" for k in TEMP_KANALER for p in ("Temp_start_C", "Temp_maks_C")]
 ALLE_KOLONNER = [
     "Test", "Lag", "Mappe", "Fil", "Sveis", "Testtype", "Beskrivelse",
     "Strom_innstilt_A", "Hastighet_innstilt_mm_s", "Trad_mm",
@@ -145,7 +147,8 @@ def analyser(fil, hjorner):
         "Dekning_pct": r(dekning, 0), "Kilde": kilde,
     }
     kurver = {}
-    for kanal, serie in les_temperatur(fil).items():
+    serier = {k: v for k, v in les_temperatur(fil).items() if k in TEMP_KANALER}
+    for kanal, serie in serier.items():
         tider = [q[0] for q in serie]
         # T_start = naermeste maaling til buestart; T_maks = hoyeste verdi fra buestart til EFTER_BUE_S etter bue
         T_start = min(serie, key=lambda q: abs((q[0] - t0).total_seconds()))
@@ -159,7 +162,7 @@ def analyser(fil, hjorner):
     rad["_kurver"] = kurver
     rad["_buetid"] = buetid
     rad["_bue"] = (t0, t1)
-    rad["_serie"] = les_temperatur(fil)
+    rad["_serie"] = serier
     print(f"  {fil.name}: {rad['Strom_A']} A, {rad['Spenning_V']} V, WFS {rad['WFS_m_min']}, "
           f"{rad['Effekt_kW']} kW, {rad['Varmetilforsel_kJ_mm']} kJ/mm, dekning {rad['Dekning_pct']:g} %")
     if dekning < 80:
