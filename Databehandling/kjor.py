@@ -22,7 +22,7 @@ from rapport import rapport
 
 # ==== Brukes naar skriptet kjores uten argumenter (Run-knappen) ====
 STEG = "alt"        # "etterbehandle", "hjorner", "rapport" eller "alt"
-MAPPE = "11/09"
+MAPPE = ""
 # ==================================================================
 
 
