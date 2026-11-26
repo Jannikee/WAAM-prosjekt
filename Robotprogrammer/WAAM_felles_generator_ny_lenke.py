@@ -90,12 +90,12 @@ PROGRAM = "ARGF2"
 WAITTIME = 30                 # sekunder etter ARCOF
 
 # Vifte og ventetid mellom lag. Etter ARCOF (og for hvert lag der det er valgt):
-#   1. vifte PAA   2. TIMER WAITTIME   3. WAIT IN# (hvis VENT_IN)   4. vifte AV   5. neste lag (ARCON)
-# Temperaturen avgjores ikke i JBI: signalet IN#(VENT_INN) settes utenfra (PC/logger).
+#   1. vifte PAA   2. TIMER WAITTIME   3. WAIT IN# (hvis VENT_TEMP)   4. vifte AV   5. neste lag (ARCON)
+# Temperaturen avgjores ikke i JBI: signalet IN#(VENT_IN_NR) settes utenfra (PC/logger).
 VIFTE_MODUS = "av"            # "av" = ingen vifte, "hvert_lag" = etter hvert lag, "kun_slutt" = bare etter siste lag
 VIFTE_UTGANG = 9              # OT#(n) som styrer viften
-VENT_IN = False               # True = vent paa IN#(VENT_INN)=ON etter hvert lag (ikke etter siste)
-VENT_INN = 17                 # IN#(n) som er ON naar roboten kan fortsette (nivaasignal)
+VENT_TEMP = False             # True = vent paa IN#(VENT_IN_NR)=ON etter hvert lag (ikke etter siste)
+VENT_IN_NR = 17                 # IN#(n) som er ON naar roboten kan fortsette (nivaasignal)
 VENT_TIMEOUT = 120            # s: gaar videre selv om signalet uteblir (sikring)
 USER = 1
 TOOL = 1
@@ -600,9 +600,9 @@ def skriv_jbi(segmenter):
         if vifte:
             instruksjoner.append(f"DOUT OT#({VIFTE_UTGANG}) ON")
         instruksjoner.append(f"TIMER T={WAITTIME}")
-        if VENT_IN and not siste:
+        if VENT_TEMP and not siste:
             # WAIT sjekker tilstanden: er signalet allerede ON gaar roboten videre med en gang
-            instruksjoner.append(f"WAIT IN#({VENT_INN})=ON T={VENT_TIMEOUT:.2f}")
+            instruksjoner.append(f"WAIT IN#({VENT_IN_NR})=ON T={VENT_TIMEOUT:.2f}")
         if vifte:
             instruksjoner.append(f"DOUT OT#({VIFTE_UTGANG}) OFF")
 
@@ -711,7 +711,7 @@ def samle_parametere(segmenter):
         ("Sveiseprosess", "PROGRAM", PROGRAM),
         ("Sveiseprosess", "WAITTIME (s)", WAITTIME),
         ("Vifte/vent", "VIFTE_MODUS / VIFTE_UTGANG", f"{VIFTE_MODUS} / {VIFTE_UTGANG}"),
-        ("Vifte/vent", "VENT_IN / IN# / timeout (s)", f"{VENT_IN} / {VENT_INN} / {VENT_TIMEOUT}"),
+        ("Vifte/vent", "VENT_TEMP / IN# / timeout (s)", f"{VENT_TEMP} / {VENT_IN_NR} / {VENT_TIMEOUT}"),
         ("Robot", "USER / TOOL", f"{USER} / {TOOL}"),
         ("Robot", "RX, RY, RZ", f"{RX}, {RY}, {RZ}"),
         ("Brennervinkel", "SIDEVINKEL (grader)", SIDEVINKEL),
