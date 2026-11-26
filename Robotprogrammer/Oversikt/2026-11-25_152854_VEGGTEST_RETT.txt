@@ -1,0 +1,68 @@
+OVERSIKT VEGGTEST
+============================================================
+Dato:            2026-11-25 15:28:54
+Type sveis:      Rett vegg
+Jobbnavn (JBI):  VEGGTEST
+JBI generert:    Ja
+Uten sveis:      Nei
+
+RESULTAT
+------------------------------------------------------------
+Antall lag:                 15
+Teoretisk veggehøyde:       18.0 mm (15 x 1.2 mm)
+Sveiselengde per lag:       100.0 mm
+Sveiselengde totalt:        1500.0 mm
+Bevegelser per lag:         20 MOVL + 0 MOVC
+Grov sveisetid (kun bane):  2.5 min (+ 7.5 min ventetid etter ARCOF)
+Start XY (lag 1):           (-73.0, -15.0)
+Slutt XY (lag 1):           (27.0, -15.0)
+Posisjoner i JBI:           319
+ARCON / ARCOF:              15 / 15
+
+PARAMETERE
+------------------------------------------------------------
+[Jobb]
+  JOBBNAVN                     VEGGTEST
+  FORM                         RETT (Rett vegg)
+  LAG_JBI                      True
+  TEST_UTEN_SVEIS              False
+[Geometri]
+  LENGDE (mm)                  100.0
+[Lag]
+  ANTALL_LAG                   15
+  LAGHOYDE (mm)                1.2
+  VEKSLENDE                    True
+  X_START, Y_START, Z_START    -73.0, -15.0, 74.2
+  FLERE_PUNKTER                True
+  PUNKTAVSTAND (mm)            5.0
+[Hastighet]
+  SVEISEHASTIGHET (mm/s)       10.0
+  HASTIGHET_L (mm/s)           10.0
+  HASTIGHET_U (mm/s)           12.0
+  FLYTTHASTIGHET (mm/s)        11.0
+  LEDDHASTIGHET (VJ %)         0.78
+  SONE_L_MM / SONE_U_MM        10.0 / 3.0
+  PL_L                         1
+  ACC / DEC                    20 / 20
+[Streng]
+  BEADWIDTH (mm)               7.8
+  OVERLAP                      0.738
+  Senteravstand (mm)           5.756
+[Sveiseprosess]
+  PROGRAM                      ARGF2
+  WAITTIME (s)                 30
+[Robot]
+  USER / TOOL                  1 / 1
+  RX, RY, RZ                   0.0, 0.0, -150.0
+  STARTPOS                     (-107.0, -40.0, 200.0)
+  SLUTTPOS                     (-107.0, -40.0, 200.0)
+
+BANE (lag 1, U-sving vises med MOVC-punkter)
+------------------------------------------------------------
+  1: linje (-73.0, -15.0) -> (27.0, -15.0)
+
+Notater (fyll inn selv etter sveising):
+  
+  
+
+MERK: Banen er generert, ikke validert på robot.

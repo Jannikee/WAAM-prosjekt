@@ -7,10 +7,10 @@ from pathlib import Path
 
 # Endrbare parametere
 JOBBNAVN = "VEGG2"                 # Maks 8 tegn
-LENGDE = 150.0                     #mm
+LENGDE = 100.0                     #mm
 ANTALL_LAG = 15                                         
 LAGHOYDE = 1.7                     #mm
-X_START, Y_START, Z_START = 30.0, 85.0, 0.0
+X_START, Y_START, Z_START = -73.0, -24.0, 74.2
 SVEISEHASTIGHET = 7              #mm/s
 PROGRAM = "ARGF2"  
 WAITTIME = 30                        # sekunder            
@@ -21,15 +21,15 @@ PUNKTAVSTAND = 5.0                 #mm
 ACC = int(20)
 DEC = int(20)
 
-USER = 9
+USER = 1
 TOOL = 1
-RX, RY, RZ = 0.0, 0.0, -170.0       # Orientering
-STARTPOS = (0.0, 0.0, 150.0)       # Parkposisjon før sveising
-SLUTTPOS = (185.0, 150.0, 150.0)   # Parkposisjon etter sveising
+RX, RY, RZ = 0.0, 0, -150.0       # Orientering
+STARTPOS = (-107.0, -40.0, 200.0)       # Parkposisjon før sveising
+SLUTTPOS = (-107.0, -40.0, 200.0)   # Parkposisjon etter sveising
 
 
 # Fast-ish parametere
-FLYTTHASTIGHET = 11.0              # mm/s, bevegelse uten bue
+FLYTTHASTIGHET = 7.0              # mm/s, bevegelse uten bue
 LEDDHASTIGHET = 0.78               # VJ i prosent
 MAKRO = f"MACRO1 MJ#(0) {PROGRAM}"    # Funksjonen må bekreftes på roboten
 RCONF = "1," + ",".join(["0"] * 23)

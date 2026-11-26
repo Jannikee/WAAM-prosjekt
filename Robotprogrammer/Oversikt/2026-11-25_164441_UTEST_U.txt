@@ -1,0 +1,70 @@
+OVERSIKT UTEST
+============================================================
+Dato:            2026-11-25 16:44:41
+Type sveis:      U-vegg (180 grader)
+Jobbnavn (JBI):  UTEST
+JBI generert:    Ja
+Uten sveis:      Nei
+
+RESULTAT
+------------------------------------------------------------
+Antall lag:                 15
+Teoretisk veggehøyde:       18.0 mm (15 x 1.2 mm)
+Sveiselengde per lag:       206.8 mm
+Sveiselengde totalt:        3102.5 mm
+Bevegelser per lag:         39 MOVL + 3 MOVC
+Grov sveisetid (kun bane):  5.1 min (+ 7.5 min ventetid etter ARCOF)
+Start XY (lag 1):           (-73.0, -10.0)
+Slutt XY (lag 1):           (-73.0, -5.65)
+Posisjoner i JBI:           649
+ARCON / ARCOF:              15 / 15
+
+PARAMETERE
+------------------------------------------------------------
+[Jobb]
+  JOBBNAVN                     UTEST
+  FORM                         U (U-vegg (180 grader))
+  LAG_JBI                      True
+  TEST_UTEN_SVEIS              False
+[Geometri]
+  LENGDE (mm)                  100.0
+[Lag]
+  ANTALL_LAG                   15
+  LAGHOYDE (mm)                1.2
+  VEKSLENDE                    True
+  X_START, Y_START, Z_START    -73.0, -10.0, 70
+  FLERE_PUNKTER                True
+  PUNKTAVSTAND (mm)            5.0
+[Hastighet]
+  SVEISEHASTIGHET (mm/s)       10.0
+  HASTIGHET_L (mm/s)           10.0
+  HASTIGHET_U (mm/s)           14.0
+  FLYTTHASTIGHET (mm/s)        11.0
+  LEDDHASTIGHET (VJ %)         0.78
+  SONE_L_MM / SONE_U_MM        10.0 / 3.0
+  PL_L                         1
+  ACC / DEC                    20 / 20
+[Streng]
+  BEADWIDTH (mm)               8.7
+  OVERLAP                      0.5
+  Senteravstand (mm)           4.35
+[Sveiseprosess]
+  PROGRAM                      ARGF2
+  WAITTIME (s)                 30
+[Robot]
+  USER / TOOL                  1 / 1
+  RX, RY, RZ                   0.0, 0.0, -150.0
+  STARTPOS                     (-107.0, -40.0, 200.0)
+  SLUTTPOS                     (-107.0, -40.0, 200.0)
+
+BANE (lag 1, U-sving: MOVC start, topp, slutt)
+------------------------------------------------------------
+  1: linje (-73.0, -10.0) -> (27.0, -10.0)
+  2: u     (27.0, -10.0) -> (27.0, -5.65)   MOVC (27.000, -10.000) (29.175, -7.825) (27.000, -5.650)
+  3: linje (27.0, -5.65) -> (-73.0, -5.65)
+
+Notater (fyll inn selv etter sveising):
+  
+  
+
+MERK: Banen er generert, ikke validert på robot.

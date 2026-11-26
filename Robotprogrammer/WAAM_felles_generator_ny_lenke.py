@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Felles WAAM banegenerator: RETT, L, U og ÅPEN T.
+"""Felles WAAM banegenerator: RETT, L, U, ÅPEN T og I (dobbel T).
 
 Bygget rundt de eksisterende WAAM-generatorenes parametere og JBI-format.
 Standard: bare XY-forhåndsvisning, IKKE JBI.
@@ -9,10 +9,19 @@ T er ETT sammenhengende spor:
  toppen til midten -> L ned -> U i bunnen -> L opp -> venstre
  og stopp like under startpunktet, UTEN avsluttende U-kobling.
 
-U-svingen bruker nå tre MOVC-punkter fra kant-koden (R = d/2):
- p1 = start + (R/2 ut,  R/2 langs)
- p2 = start + (R ut,    R + R/2 langs)
- p3 = sluttpunktet (en senteravstand d fra start)
+I (dobbel T, hatt oppe og nede) er også ETT sammenhengende spor:
+ start venstre øverst -> hele toppen -> U til høyre -> tilbake til
+ stammen -> ned stammens høyre side -> ut til høyre i bunnhatten ->
+ U til høyre -> hele bunnen mot venstre -> U til venstre -> inn mot
+ stammen -> opp stammens venstre side -> venstre og stopp like under start.
+
+U-svingen er en halvsirkel (R = d/2). Siste MOVL ligger 5 mm før
+halvsirkelen, deretter tre MOVC-punkter på sirkelen:
+ MOVL  5 mm før start          (rett linje)
+ MOVC  start  (0 grader)       <- lineær bevegelse hit (Yaskawa)
+ MOVC  topp   (90 grader)  = start + (R langs, R ut)
+ MOVC  slutt  (180 grader) = start + (2R langs)
+Neste MOVL etter svingen er lineær igjen.
 
 VIKTIG: Banegenerering er ikke robotvalidering. Kontroller MOVC-/PL-
 syntaks, orientering, sikker inn-/utkjøring og sveiseprogram i robotcellen.
@@ -22,26 +31,26 @@ import csv
 import shutil
 from dataclasses import dataclass
 from datetime import datetime
-from math import ceil, hypot
+from math import atan2, ceil, cos, hypot, pi, sin
 from pathlib import Path
 
 # ============================================================
 # ENDRBARE PARAMETERE  (beholdt fra de tidligere generatorene)
 # ============================================================
-JOBBNAVN = "UTEST"              # Maks 8 ASCII bokstaver/tall
-FORM = "U"                     # "RETT", "L", "U" eller "T"
+JOBBNAVN = "ITEST"              # Maks 8 ASCII bokstaver/tall
+FORM = "I"                     # "RETT", "L", "U", "T" eller "I"
 
 LAG_JBI = True              # False = kun XY-forhåndsvisning
 LAGRE_BILDE = True
-VIS_BANE = False          # True = åpne plottvinduet i VS Code
+VIS_BANE = True          # True = åpne plottvinduet i VS Code
 TEST_UTEN_SVEIS = False         # Relevant KUN hvis LAG_JBI=True
 LAG_OVERSIKT = True             # Lagrer oversikt (type, parametere, dato) i mappen "Oversikt"
 
 # Basisgeometri og lag
 LENGDE = 100.0                 # RETT: hel lengde; L: total; U: per arm
-ANTALL_LAG = 15
-LAGHOYDE = 1.4
-X_START, Y_START, Z_START = 225.0, 210.0, 75.0
+ANTALL_LAG = 20
+LAGHOYDE = 1.7
+X_START, Y_START, Z_START = -75.0, -72.0, 70
 VEKSLENDE = True
 FLERE_PUNKTER = True
 PUNKTAVSTAND = 5.0
@@ -49,7 +58,7 @@ PUNKTAVSTAND = 5.0
 # Hastighet - separate innstillinger for rette deler, L og U
 SVEISEHASTIGHET = 7.0          # mm/s, rett strekning
 HASTIGHET_L = 7.0              # mm/s, ved L-hjørner (90 grader)
-HASTIGHET_U = 11.0              # mm/s, ved U-svinger (180 grader)
+HASTIGHET_U = 12.0              # mm/s, ved U-svinger (180 grader)
 SONE_L_MM = 10.0               # mm før og etter L-hjørnet
 SONE_U_MM = 3.0               # mm før og etter U-svingen
 
@@ -58,9 +67,10 @@ PL_L = 1                       # None = utelat PL; 1 til 8 = skriv PL=n
 ACC = 20
 DEC = 20
 
+
 # U og T: samme definisjon som tidligere U-kode
-BEADWIDTH = 11               # mm, nominell strengbredde
-OVERLAP = 0.5                  # senteravstand = BEADWIDTH * OVERLAP
+BEADWIDTH = 7.8             # mm, nominell strengbredde 7.8 eller 8.7
+OVERLAP = 0.5               # senteravstand = BEADWIDTH * OVERLAP
 # Merk: OVERLAP=0.7 her betyr 70 % av beadwidth i senteravstand,
 # og dermed omtrent 30 % geometrisk breddeoverlapp.
 
@@ -71,19 +81,23 @@ T_EKSTRA_INNSPENNING = 0.0   # mm, ekstra lengde nederst til å gripe
 T_STAMME_SENTER_X = None      # None = midt på toppen; ellers absolutt X i USER
 T_SLUTT_X_OFFSET = 0.0        # 0 = slutt rett under start (ikke koblet sammen)
 
+# I: bruker T_TOPPLENGDE, T_STAMME_SENTER_X og T_SLUTT_X_OFFSET over.
+# T_STAMME_LENGDE = avstand mellom innsiden av topphatten og innsiden av bunnhatten.
+I_BUNNLENGDE = None          # None = samme som T_TOPPLENGDE; bunnhatten sentreres under stammen
+
 # Sveiseprosess og robot
 PROGRAM = "ARGF2"
-WAITTIME = 60                 # sekunder etter ARCOF
-USER = 9
+WAITTIME = 30                 # sekunder etter ARCOF
+USER = 1
 TOOL = 1
 FLYTTHASTIGHET = 11.0       # mm/s, bevegelse uten bue
 LEDDHASTIGHET = 0.78        # VJ i prosent
-STARTPOS = (225.0, 185.0, 200.0)
-SLUTTPOS = (225.0, 185.0, 200.0)
+STARTPOS = (-107.0, -40.0, 200.0)       # Parkposisjon før sveising
+SLUTTPOS = (-107.0, -40.0, 200.0)
 
 # Brennerens RX, RY, RZ. Dette er ROBOTENS orienteringsverdier,
 # ikke nødvendigvis fysisk arbeid-/føringsvinkel i grader.
-RX, RY, RZ = 0.0, 0.0, 45.0  
+RX, RY, RZ = 0.0, 0.0, -150.0  
 VINKEL_RETT = (RX, RY, RZ)
 VINKEL_L = (RX, RY, RZ)
 VINKEL_U = (RX, RY, RZ)
@@ -103,7 +117,7 @@ class Segment:
     typ: str                     # "linje" eller "u"
     fra: XY
     til: XY
-    sving: tuple[XY, ...] = ()   # mellompunkter i U-svingen (MOVC), i kjøreretning
+    sving: tuple[XY, ...] = ()   # toppunktet (90 grader) i U-svingen, MOVC
 
     def snudd(self):
         # Kjøres svingen motsatt vei, reverseres også mellompunktene
@@ -119,13 +133,10 @@ def linje(a: XY, b: XY) -> Segment:
 
 
 def u_sving(a: XY, b: XY, ut: XY) -> Segment:
-    """U-sving fra a til b (avstand d), utbuling i retning `ut` (enhetsvektor).
+    """Halvsirkel fra a til b (avstand d = diameter), utbuling i retning `ut`.
 
-    Samme punkter som i kant-koden, med R = d/2:
-      p1 = a + R/2 * ut + R/2 * t
-      p2 = a + R   * ut + (R + R/2) * t
-      p3 = b
-    der t er enhetsvektoren fra a mot b.
+    R = d/2, t = enhetsvektor fra a mot b. MOVC-punkter:
+      a (0 grader), topp = a + R*t + R*ut (90 grader), b (180 grader)
     """
     d = avstand(a, b)
     R = d / 2
@@ -135,9 +146,42 @@ def u_sving(a: XY, b: XY, ut: XY) -> Segment:
         return (a[0] + utover * ut[0] + langs * t[0],
                 a[1] + utover * ut[1] + langs * t[1])
 
-    p1 = p(R / 2, R / 2)
-    p2 = p(R + R / 2, R)
-    return Segment("u", a, b, (p1, p2))
+    return Segment("u", a, b, (p(R, R),))
+
+
+def sirkel_bue(p1: XY, p2: XY, p3: XY, n: int = 40):
+    """Punkter langs sirkelbuen gjennom p1 -> p2 -> p3 (slik MOVC tolker
+    tre påfølgende MOVC-punkter). Returnerer (punkter, buelengde).
+    Ligger punktene på linje, brukes rette streker."""
+    ax_, ay = p1; bx, by = p2; cx, cy = p3
+    D = 2 * (ax_ * (by - cy) + bx * (cy - ay) + cx * (ay - by))
+    if abs(D) < 1e-12:
+        return [p1, p2, p3], avstand(p1, p2) + avstand(p2, p3)
+    a2, b2, c2 = ax_**2 + ay**2, bx**2 + by**2, cx**2 + cy**2
+    ux = (a2 * (by - cy) + b2 * (cy - ay) + c2 * (ay - by)) / D
+    uy = (a2 * (cx - bx) + b2 * (ax_ - cx) + c2 * (bx - ax_)) / D
+    r = hypot(ax_ - ux, ay - uy)
+    v1, v2, v3 = (atan2(q[1] - uy, q[0] - ux) for q in (p1, p2, p3))
+    # Velg omløpsretning slik at buen passerer p2
+    ccw = lambda a, b: (b - a) % (2 * pi)
+    if ccw(v1, v2) <= ccw(v1, v3):
+        sveip = ccw(v1, v3)
+    else:
+        sveip = -ccw(v3, v1)
+    from math import cos, sin
+    pts = [(ux + r * cos(v1 + sveip * i / n), uy + r * sin(v1 + sveip * i / n))
+           for i in range(n + 1)]
+    return pts, abs(sveip) * r
+
+
+def u_bane(seg: Segment):
+    """XY-bane for en U: halvsirkel gjennom start, topp og slutt."""
+    return sirkel_bue(seg.fra, seg.sving[0], seg.til)
+
+
+def movc_punkter(seg: Segment):
+    """De tre MOVC-målene i U-svingen (start, topp, slutt), i kjørerekkefølge."""
+    return [seg.fra, *seg.sving, seg.til]
 
 
 def senteravstand() -> float:
@@ -145,8 +189,8 @@ def senteravstand() -> float:
 
 
 """ def valider_innstillinger():
-    if FORM not in {"RETT", "L", "U", "T"}:
-        raise ValueError('FORM må være "RETT", "L", "U" eller "T".')
+    if FORM not in {"RETT", "L", "U", "T", "I"}:
+        raise ValueError('FORM må være "RETT", "L", "U", "T" eller "I".')
     if not (1 <= len(JOBBNAVN) <= 8 and JOBBNAVN.isascii() and JOBBNAVN.isalnum()):
         raise ValueError("JOBBNAVN: 1-8 ASCII bokstaver/tall.")
     if PL_L is not None and (type(PL_L) is not int or not 1 <= PL_L <= 8):
@@ -162,7 +206,7 @@ def senteravstand() -> float:
         raise ValueError("PUNKTAVSTAND må være positiv.")
     if min(SONE_L_MM, SONE_U_MM) < 0:
         raise ValueError("SONE_L_MM/SONE_U_MM må være >= 0.")
-    if FORM == "T":
+    if FORM in ("T", "I"):
         if T_TOPPLENGDE <= 0 or T_STAMME_LENGDE <= 0 or T_EKSTRA_INNSPENNING < 0:
             raise ValueError("Ugyldige T-lengder.")
         if not 0 <= T_SLUTT_X_OFFSET < T_TOPPLENGDE / 2:
@@ -197,6 +241,31 @@ def generer_segmenter():
         s = [linje((x, y), (xr, y)),
              u_sving((xr, y), (xr, y + d), ut=(1, 0)),
              linje((xr, y + d), (x, y + d))]
+    elif FORM == "I":
+        # I-FORM / dobbel T (én sammenhengende bane), hatt oppe og nede.
+        d2 = d / 2
+        xr = x + T_TOPPLENGDE
+        xm = T_STAMME_SENTER_X if T_STAMME_SENTER_X is not None else x + T_TOPPLENGDE / 2
+        xl, xh = xm - d2, xm + d2
+        lb = I_BUNNLENGDE if I_BUNNLENGDE is not None else T_TOPPLENGDE
+        xb0, xb1 = xm - lb / 2, xm + lb / 2       # bunnhattens ender
+        yu = y + d                                 # topphattens nedre spor
+        yb = yu + T_STAMME_LENGDE                  # bunnhattens øvre spor
+        yb2 = yb + d                               # bunnhattens nedre spor
+        s = [
+            linje((x, y), (xr, y)),                        # Hele toppen
+            u_sving((xr, y), (xr, yu), ut=(1, 0)),         # U til høyre, oppe
+            linje((xr, yu), (xh, yu)),                     # Retur mot stammen
+            linje((xh, yu), (xh, yb)),                     # Ned stammens høyre side
+            linje((xh, yb), (xb1, yb)),                    # Ut til høyre i bunnhatten
+            u_sving((xb1, yb), (xb1, yb2), ut=(1, 0)),     # U til høyre, nede
+            linje((xb1, yb2), (xb0, yb2)),                 # Hele bunnen mot venstre
+            u_sving((xb0, yb2), (xb0, yb), ut=(-1, 0)),    # U til venstre, nede
+            linje((xb0, yb), (xl, yb)),                    # Inn mot stammen
+            linje((xl, yb), (xl, yu)),                     # Opp stammens venstre side
+            linje((xl, yu), (x + T_SLUTT_X_OFFSET, yu)),   # L til venstre
+            # INTET siste U: sveisingen slutter like under start.
+        ]
     else:
         # ÅPEN T (én sammenhengende bane) -- start og stopp skilt av d.
         xr = x + T_TOPPLENGDE
@@ -259,20 +328,24 @@ def finn_sone(segmenter, indeks, t):
 def baneinstruksjoner(segmenter):
     """List av bevegelser: målpunkt, MOVL/MOVC, sone og PL-bryter.
 
-    En U har nå tre MOVC-mål: de to svingpunktene (p1, p2) og sluttpunktet.
-    Startpunktet er allerede foregående MOVL-mål, som i kant-koden.
+    En U har tre MOVC-mål: start, topp og slutt. Linjen foran en U
+    stopper 5 mm før start (siste MOVL), så går roboten lineært
+    inn til første MOVC-punkt.
     """
     resultat = []
     for indeks, seg in enumerate(segmenter):
         if seg.typ == "u":
-            for punkt in (*seg.sving, seg.til):
+            for punkt in movc_punkter(seg):
                 resultat.append((punkt, "MOVC", "U", False))
             continue
 
         lengde = avstand(seg.fra, seg.til)
-        steg = max(1, ceil(lengde / PUNKTAVSTAND)) if FLERE_PUNKTER else 1
+        neste_er_u = indeks < len(segmenter) - 1 and segmenter[indeks + 1].typ == "u"
+        kort = min(5.0, lengde * 0.5) if neste_er_u else 0.0
+        brukt = lengde - kort                  # del av linjen som får MOVL-punkter
+        steg = max(1, ceil(brukt / PUNKTAVSTAND)) if FLERE_PUNKTER else 1
         for i in range(1, steg + 1):
-            t = i / steg
+            t = (i / steg) * brukt / lengde    # relativ posisjon på hele linjen
             punkt = (seg.fra[0] + (seg.til[0] - seg.fra[0]) * t,
                      seg.fra[1] + (seg.til[1] - seg.fra[1]) * t)
             sone = finn_sone(segmenter, indeks, t)
@@ -314,19 +387,20 @@ def vis_forhandsvisning(segmenter, filbane=None):
             ax.annotate("", xy=(x2, y2), xytext=(x1, y1),
                         arrowprops=dict(arrowstyle="-|>", lw=1.7, color="royalblue"))
         else:
-            # Svingen vises som rette streker gjennom MOVC-punktene
-            # (start -> p1 -> p2 -> slutt). Dette er IKKE en simulering av MOVC.
-            pts = [seg.fra, *seg.sving, seg.til]
+            # Svingen: halvsirkel gjennom MOVC start, topp, slutt.
+            pts, _ = u_bane(seg)
             ax.plot([p[0] for p in pts], [p[1] for p in pts],
                     color="darkorange", lw=2.7)
-            ax.scatter([p[0] for p in seg.sving], [p[1] for p in seg.sving],
+            mc = movc_punkter(seg)
+            ax.scatter([p[0] for p in mc], [p[1] for p in mc],
                        color="darkorange", s=22, zorder=4)
 
     start, slutt = segmenter[0].fra, segmenter[-1].til
     ax.scatter([start[0]], [start[1]], color="green", s=65, zorder=6, label="Start")
     ax.scatter([slutt[0]], [slutt[1]], color="crimson", s=65, zorder=6, label="Slutt")
-    ax.annotate("Start", start, xytext=(8, -17), textcoords="offset points", ha="left")
-    ax.annotate("Slutt", slutt, xytext=(8, 12), textcoords="offset points", ha="left")
+    # Y-aksen er invertert: positiv offset = opp på bildet (mot start øverst)
+    ax.annotate("Start", start, xytext=(8, 8), textcoords="offset points", ha="left")
+    ax.annotate("Slutt", slutt, xytext=(8, -14), textcoords="offset points", ha="left")
     ax.set_title(f"{JOBBNAVN}: {FORM} – åpen sveisebane (lag 1)")
     ax.set_xlabel("X (mm), USER")
     ax.set_ylabel("Y (mm), USER")
@@ -434,15 +508,15 @@ def skriv_jbi(segmenter):
 # ============================================================
 
 FORM_NAVN = {"RETT": "Rett vegg", "L": "L-vegg (90 grader)",
-             "U": "U-vegg (180 grader)", "T": "Åpen T-vegg"}
+             "U": "U-vegg (180 grader)", "T": "Åpen T-vegg",
+             "I": "I-vegg (dobbel T)"}
 
 
 def banelengde(segmenter) -> float:
-    """Sveiselengde for ett lag (U regnes langs punktene i svingen)."""
+    """Sveiselengde for ett lag (U regnes langs sirkelbuen)."""
     total = 0.0
     for s in segmenter:
-        pts = [s.fra, *s.sving, s.til]
-        total += sum(avstand(a, b) for a, b in zip(pts, pts[1:]))
+        total += u_bane(s)[1] if s.typ == "u" else avstand(s.fra, s.til)
     return total
 
 
@@ -479,7 +553,7 @@ def samle_parametere(segmenter):
     ]
     if FORM in ("RETT", "L", "U"):
         p.insert(4, ("Geometri", "LENGDE (mm)", LENGDE))
-    if FORM == "T":
+    if FORM in ("T", "I"):
         p[4:4] = [
             ("Geometri", "T_TOPPLENGDE (mm)", T_TOPPLENGDE),
             ("Geometri", "T_STAMME_LENGDE (mm)", T_STAMME_LENGDE),
@@ -487,6 +561,8 @@ def samle_parametere(segmenter):
             ("Geometri", "T_STAMME_SENTER_X", T_STAMME_SENTER_X),
             ("Geometri", "T_SLUTT_X_OFFSET (mm)", T_SLUTT_X_OFFSET),
         ]
+    if FORM == "I":
+        p.insert(9, ("Geometri", "I_BUNNLENGDE (mm)", I_BUNNLENGDE))
     return p
 
 
@@ -549,11 +625,11 @@ def skriv_oversikt(segmenter, jbi_instruksjoner=None, bildefil=None):
             gruppe = g
         linjer.append(f"  {navn:<28} {verdi}")
 
-    linjer += ["", "BANE (lag 1, U-sving vises med MOVC-punkter)", "-" * 60]
+    linjer += ["", "BANE (lag 1, U-sving: MOVC start, topp, slutt)", "-" * 60]
     for i, s in enumerate(segmenter, start=1):
         tekst = f"  {i}: {s.typ:5} {s.fra} -> {s.til}"
-        if s.sving:
-            tekst += "   via " + " ".join(f"({p[0]:.3f}, {p[1]:.3f})" for p in s.sving)
+        if s.typ == "u":
+            tekst += "   MOVC " + " ".join(f"({p[0]:.3f}, {p[1]:.3f})" for p in movc_punkter(s))
         linjer.append(tekst)
 
     linjer += ["", "Notater (fyll inn selv etter sveising):", "  ", "  ",
@@ -583,7 +659,7 @@ def skriv_oversikt(segmenter, jbi_instruksjoner=None, bildefil=None):
         "Beadwidth mm": BEADWIDTH,
         "Overlap": OVERLAP,
         "Senteravstand mm": round(senteravstand(), 3),
-        "Lengde mm": T_TOPPLENGDE if FORM == "T" else LENGDE,
+        "Lengde mm": T_TOPPLENGDE if FORM in ("T", "I") else LENGDE,
         "Program": PROGRAM,
         "Vekslende": "Ja" if VEKSLENDE else "Nei",
         "Sveiselengde totalt mm": round(sveiselengde, 1),

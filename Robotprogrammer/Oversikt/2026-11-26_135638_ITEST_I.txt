@@ -1,0 +1,83 @@
+OVERSIKT ITEST
+============================================================
+Dato:            2026-11-26 13:56:38
+Type sveis:      I-vegg (dobbel T)
+Jobbnavn (JBI):  ITEST
+JBI generert:    Ja
+Uten sveis:      Nei
+
+RESULTAT
+------------------------------------------------------------
+Antall lag:                 20
+Teoretisk veggehøyde:       34.0 mm (20 x 1.7 mm)
+Sveiselengde per lag:       630.6 mm
+Sveiselengde totalt:        12611.6 mm
+Bevegelser per lag:         121 MOVL + 9 MOVC
+Grov sveisetid (kun bane):  29.3 min (+ 10.0 min ventetid etter ARCOF)
+Start XY (lag 1):           (-75.0, -72.0)
+Slutt XY (lag 1):           (-75.0, -68.1)
+Posisjoner i JBI:           2624
+ARCON / ARCOF:              20 / 20
+
+PARAMETERE
+------------------------------------------------------------
+[Jobb]
+  JOBBNAVN                     ITEST
+  FORM                         I (I-vegg (dobbel T))
+  LAG_JBI                      True
+  TEST_UTEN_SVEIS              False
+[Geometri]
+  T_TOPPLENGDE (mm)            100.0
+  T_STAMME_LENGDE (mm)         110.0
+  T_EKSTRA_INNSPENNING (mm)    0.0
+  T_STAMME_SENTER_X            None
+  T_SLUTT_X_OFFSET (mm)        0.0
+  I_BUNNLENGDE (mm)            None
+[Lag]
+  ANTALL_LAG                   20
+  LAGHOYDE (mm)                1.7
+  VEKSLENDE                    True
+  X_START, Y_START, Z_START    -75.0, -72.0, 70
+  FLERE_PUNKTER                True
+  PUNKTAVSTAND (mm)            5.0
+[Hastighet]
+  SVEISEHASTIGHET (mm/s)       7.0
+  HASTIGHET_L (mm/s)           7.0
+  HASTIGHET_U (mm/s)           12.0
+  FLYTTHASTIGHET (mm/s)        11.0
+  LEDDHASTIGHET (VJ %)         0.78
+  SONE_L_MM / SONE_U_MM        10.0 / 3.0
+  PL_L                         1
+  ACC / DEC                    20 / 20
+[Streng]
+  BEADWIDTH (mm)               7.8
+  OVERLAP                      0.5
+  Senteravstand (mm)           3.9
+[Sveiseprosess]
+  PROGRAM                      ARGF2
+  WAITTIME (s)                 30
+[Robot]
+  USER / TOOL                  1 / 1
+  RX, RY, RZ                   0.0, 0.0, -150.0
+  STARTPOS                     (-107.0, -40.0, 200.0)
+  SLUTTPOS                     (-107.0, -40.0, 200.0)
+
+BANE (lag 1, U-sving: MOVC start, topp, slutt)
+------------------------------------------------------------
+  1: linje (-75.0, -72.0) -> (25.0, -72.0)
+  2: u     (25.0, -72.0) -> (25.0, -68.1)   MOVC (25.000, -72.000) (26.950, -70.050) (25.000, -68.100)
+  3: linje (25.0, -68.1) -> (-23.05, -68.1)
+  4: linje (-23.05, -68.1) -> (-23.05, 41.900000000000006)
+  5: linje (-23.05, 41.900000000000006) -> (25.0, 41.900000000000006)
+  6: u     (25.0, 41.900000000000006) -> (25.0, 45.800000000000004)   MOVC (25.000, 41.900) (26.950, 43.850) (25.000, 45.800)
+  7: linje (25.0, 45.800000000000004) -> (-75.0, 45.800000000000004)
+  8: u     (-75.0, 45.800000000000004) -> (-75.0, 41.900000000000006)   MOVC (-75.000, 45.800) (-76.950, 43.850) (-75.000, 41.900)
+  9: linje (-75.0, 41.900000000000006) -> (-26.95, 41.900000000000006)
+  10: linje (-26.95, 41.900000000000006) -> (-26.95, -68.1)
+  11: linje (-26.95, -68.1) -> (-75.0, -68.1)
+
+Notater (fyll inn selv etter sveising):
+  
+  
+
+MERK: Banen er generert, ikke validert på robot.
