@@ -14,7 +14,7 @@ import re
 from pathlib import Path
 from statistics import pstdev
 
-from felles import ANALYSE, BEHANDLET, RAPPORT, les_behandlet, med, rund as r, tall, test_og_lag
+from felles import ANALYSE, BEHANDLET, RAPPORT, les_behandlet, les_temperatur, med, rund as r, tall, test_og_lag
 
 # ======================== ENDRBARE VERDIER ========================
 LAG_GRAFER = True
@@ -23,8 +23,16 @@ MAKS_HULL_S = 2.0           # maks tid mellom to W-maalinger som regnes sammenhe
 MIN_BEVEGELSE_MM_S = 0.5
 FJERN_GJENTATTE_W = True    # ~30 % av W-maalingene er kopier av forrige (sveisemaskinen
                             # oppdaterer saktere enn 4 Hz). True = bruk bare nye verdier.
+EFTER_BUE_S = 30.0          # temperaturtoppen kommer noen sekunder ETTER at buen stopper
+# Hvor sitter termoelementene? Navnet vises i figurene. Ukjente kanaler heter bare "c<n>".
+KANALNAVN = {
+    "c1": "c1 substrat (midt paa plata)",
+    # "c2": "c2 enden av streken",
+    # "c3": "c3 ved U-en",
+}
 # ================================================================
 
+TEMP_KOLONNER = [f"{p}_c{k}" for k in range(1, 9) for p in ("Temp_start_C", "Temp_maks_C")]
 ALLE_KOLONNER = [
     "Test", "Lag", "Mappe", "Fil", "Sveis", "Testtype", "Beskrivelse",
     "Strom_innstilt_A", "Hastighet_innstilt_mm_s", "Trad_mm",
@@ -35,13 +43,13 @@ ALLE_KOLONNER = [
     "Hastighet_median_mm_s", "Hastighet_snitt_mm_s",
     "Varmetilforsel_kJ_mm", "Volum_mm3_mm",
     "Fartsreduksjon_hjorne_pct", "Dekning_pct", "Kilde",
-]
+] + TEMP_KOLONNER
 TEST_KOLONNER = [
     "Test", "Mappe", "Antall_lag", "Testtype", "Beskrivelse",
     "Strom_A", "Spenning_V", "WFS_m_min", "Effekt_kW",
     "Hastighet_median_mm_s", "Varmetilforsel_kJ_mm", "Volum_mm3_mm",
     "Energi_kJ", "Fartsreduksjon_hjorne_pct",
-]
+] + TEMP_KOLONNER
 
 
 def sd(v):
@@ -136,6 +144,20 @@ def analyser(fil, hjorner):
         "Fartsreduksjon_hjorne_pct": r(hjorner.get(fil.name), 1),
         "Dekning_pct": r(dekning, 0), "Kilde": kilde,
     }
+    kurver = {}
+    for kanal, serie in les_temperatur(fil).items():
+        tider = [q[0] for q in serie]
+        # T_start = naermeste maaling til buestart; T_maks = hoyeste verdi fra buestart til EFTER_BUE_S etter bue
+        T_start = min(serie, key=lambda q: abs((q[0] - t0).total_seconds()))
+        if abs((T_start[0] - t0).total_seconds()) <= 5:
+            rad[f"Temp_start_C_{kanal}"] = r(T_start[1], 1)
+        vindu = [v for t, v in serie if 0 <= (t - t0).total_seconds() <= buetid + EFTER_BUE_S]
+        if vindu:
+            rad[f"Temp_maks_C_{kanal}"] = r(max(vindu), 1)
+        kurver[kanal] = [((t - t0).total_seconds(), v) for t, v in serie
+                         if -10 <= (t - t0).total_seconds() <= buetid + 60]
+    rad["_kurver"] = kurver
+    rad["_buetid"] = buetid
     print(f"  {fil.name}: {rad['Strom_A']} A, {rad['Spenning_V']} V, WFS {rad['WFS_m_min']}, "
           f"{rad['Effekt_kW']} kW, {rad['Varmetilforsel_kJ_mm']} kJ/mm, dekning {rad['Dekning_pct']:g} %")
     if dekning < 80:
@@ -152,7 +174,9 @@ def test_oversikt(alle):
         s = {"Test": test, "Mappe": mappe, "Antall_lag": len(rader),
              "Testtype": rader[0]["Testtype"], "Beskrivelse": rader[0]["Beskrivelse"]}
         for k in TEST_KOLONNER[5:]:
-            s[k] = r(med([x[k] for x in rader]), 3)
+            v = [x.get(k) for x in rader if x.get(k) is not None]
+            # temperatur: hoyeste maks over lagene; ellers median
+            s[k] = r(max(v), 1) if v and k.startswith("Temp_maks") else r(med(v), 3)
         ut.append(s)
     return grupper, ut
 
@@ -165,6 +189,8 @@ def skriv_excel(alle, oversikt, sti):
     for tittel, kolonner, rader in (("Testoversikt", TEST_KOLONNER, oversikt), ("Alle lag", ALLE_KOLONNER, alle)):
         ws = wb.active if tittel == "Testoversikt" else wb.create_sheet(tittel)
         ws.title = tittel
+        # temperaturkolonner tas bare med hvis noen filer har dem
+        kolonner = [k for k in kolonner if k not in TEMP_KOLONNER or any(x.get(k) is not None for x in rader)]
         ws.append(kolonner)
         for rad in rader:
             ws.append([rad.get(k) for k in kolonner])
@@ -190,8 +216,11 @@ def lag_figurer(grupper, oversikt):
                ("Varmetilforsel_kJ_mm", None, "Varmetilforsel (kJ/mm)")]
     for (mappe, test), rader in sorted(grupper.items()):
         rader = sorted(rader, key=lambda q: q["Lag"])
-        fig, axes = plt.subplots(2, 3, figsize=(13, 6.5), sharex=True)
-        for ax, (key, std, tittel) in zip(axes.flat, paneler):
+        kanaler = sorted({k[-2:] for q in rader for k in q if k.startswith("Temp_maks_") and q[k] is not None})
+        rader_n = 3 if kanaler else 2
+        fig, axes = plt.subplots(rader_n, 3, figsize=(13, 3.3 * rader_n), sharex=False)
+        akser = list(axes.flat)
+        for ax, (key, std, tittel) in zip(akser, paneler):
             pts = [(q["Lag"], q[key], q.get(std) if std else None) for q in rader if q[key] is not None]
             if pts:
                 x, y, e = zip(*pts)
@@ -205,8 +234,38 @@ def lag_figurer(grupper, oversikt):
             ax.set_title(tittel, fontsize=10)
             ax.grid(alpha=0.25)
             ax.set_xticks([q["Lag"] for q in rader])
-        for ax in axes[1]:
-            ax.set_xlabel("Lag")
+        if kanaler:
+            a_start, a_maks, a_tid = akser[6:9]
+            for kanal in kanaler:
+                navn = KANALNAVN.get(kanal, kanal)
+                for ax, pre in ((a_start, "Temp_start_C_"), (a_maks, "Temp_maks_C_")):
+                    pts = [(q["Lag"], q[pre + kanal]) for q in rader if q.get(pre + kanal) is not None]
+                    if pts:
+                        ax.plot(*zip(*pts), marker="o", linewidth=1.5, label=navn)
+            a_start.set_title("Temperatur ved buestart (C) - mellomlagstemp.", fontsize=10)
+            a_maks.set_title(f"Hoyeste temperatur (C), til {EFTER_BUE_S:g} s etter bue", fontsize=10)
+            for ax in (a_start, a_maks):
+                ax.set_xticks([q["Lag"] for q in rader])
+                ax.set_xlabel("Lag")
+                ax.grid(alpha=0.25)
+            a_maks.legend(fontsize=7)
+            # temperaturkurve mot tid for hvert lag, forste kanal som har data
+            kanal = kanaler[0]
+            for q in rader:
+                kurve = q.get("_kurver", {}).get(kanal)
+                if kurve:
+                    a_tid.plot(*zip(*kurve), linewidth=1, label=f"lag {q['Lag']}")
+                    a_tid.axvline(0, color="gray", linewidth=0.5)
+            a_tid.set_title(f"{KANALNAVN.get(kanal, kanal)}: temperatur mot tid fra buestart", fontsize=9)
+            a_tid.set_xlabel("s fra buestart")
+            a_tid.grid(alpha=0.25)
+            if len(rader) <= 12:
+                a_tid.legend(fontsize=6, ncol=2)
+            for ax in akser[3:6]:
+                ax.set_xlabel("Lag")
+        else:
+            for ax in axes[1]:
+                ax.set_xlabel("Lag")
         fig.suptitle(f"{test}: sveiseparametere per lag (median, feillinje = std; stiplet = testmedian)", fontsize=12)
         fig.tight_layout()
         slug = "_".join([p for p in Path(mappe).parts if p != "."] + [test])
@@ -214,13 +273,19 @@ def lag_figurer(grupper, oversikt):
         plt.close(fig)
 
     if len(oversikt) > 1:
-        fig, axes = plt.subplots(2, 3, figsize=(14, 7))
-        for ax, (key, _, tittel) in zip(axes.flat, paneler):
-            ax.bar(range(len(oversikt)), [o[key] or 0 for o in oversikt])
+        paneler2 = list(paneler)
+        if any(o.get("Temp_maks_C_c1") is not None for o in oversikt):
+            paneler2 += [("Temp_maks_C_c1", None, "Hoyeste temp. c1 (C)")]
+        rader_n = 2 if len(paneler2) <= 6 else 3
+        fig, axes = plt.subplots(rader_n, 3, figsize=(14, 3.5 * rader_n))
+        for ax, (key, _, tittel) in zip(axes.flat, paneler2):
+            ax.bar(range(len(oversikt)), [o.get(key) or 0 for o in oversikt])
             ax.set_xticks(range(len(oversikt)))
             ax.set_xticklabels([o["Test"] for o in oversikt], rotation=60, ha="right", fontsize=7)
             ax.set_title(tittel, fontsize=10)
             ax.grid(axis="y", alpha=0.25)
+        for ax in list(axes.flat)[len(paneler2):]:
+            ax.axis("off")
         fig.suptitle("Sammenligning av tester (median over lag)", fontsize=12)
         fig.tight_layout()
         fig.savefig(RAPPORT / "Sammenligning.png", dpi=150)

@@ -186,6 +186,27 @@ def les_behandlet(fil):
     return meta, S, W
 
 
+def les_temperatur(fil):
+    """Temperaturkanalene c1..c8 fra en behandlet lagfil.
+
+    Returnerer {"c1": [(t, grader), ...], ...} sortert paa tid. Kanaler uten
+    verdier tas ikke med. Loggeren skriver ca. 1 verdi per sekund.
+    """
+    ut = {}
+    with fil.open(encoding="utf-8-sig", newline="") as fh:
+        for rad in csv.DictReader(fh):
+            t = tid(rad.get("time"))
+            if t is None:
+                continue
+            for k in range(1, 9):
+                v = tall(rad.get(f"c{k}"))
+                if v is not None:
+                    ut.setdefault(f"c{k}", []).append((t, v))
+    for serie in ut.values():
+        serie.sort(key=lambda q: q[0])
+    return ut
+
+
 def skriv_csv(sti, rader, felt=None):
     sti.parent.mkdir(parents=True, exist_ok=True)
     felt = felt or list(rader[0])
