@@ -96,7 +96,6 @@ VIFTE_MODUS = "av"            # "av" = ingen vifte, "hvert_lag" = etter hvert la
 VIFTE_UTGANG = 9              # OT#(n) som styrer viften
 VENT_TEMP = False             # True = vent paa IN#(VENT_IN_NR)=ON etter hvert lag (ikke etter siste)
 VENT_IN_NR = 17                 # IN#(n) som er ON naar roboten kan fortsette (nivaasignal)
-VENT_TIMEOUT = 120            # s: gaar videre selv om signalet uteblir (sikring)
 USER = 1
 TOOL = 1
 FLYTTHASTIGHET = 11.0       # mm/s, bevegelse uten bue
@@ -602,7 +601,7 @@ def skriv_jbi(segmenter):
         instruksjoner.append(f"TIMER T={WAITTIME}")
         if VENT_TEMP and not siste:
             # WAIT sjekker tilstanden: er signalet allerede ON gaar roboten videre med en gang
-            instruksjoner.append(f"WAIT IN#({VENT_IN_NR})=ON T={VENT_TIMEOUT:.2f}")
+            instruksjoner.append(f"WAIT IN#({VENT_IN_NR})=ON")
         if vifte:
             instruksjoner.append(f"DOUT OT#({VIFTE_UTGANG}) OFF")
 
@@ -711,7 +710,7 @@ def samle_parametere(segmenter):
         ("Sveiseprosess", "PROGRAM", PROGRAM),
         ("Sveiseprosess", "WAITTIME (s)", WAITTIME),
         ("Vifte/vent", "VIFTE_MODUS / VIFTE_UTGANG", f"{VIFTE_MODUS} / {VIFTE_UTGANG}"),
-        ("Vifte/vent", "VENT_TEMP / IN# / timeout (s)", f"{VENT_TEMP} / {VENT_IN_NR} / {VENT_TIMEOUT}"),
+        ("Vifte/vent", "VENT_TEMP / VENT_IN_NR", f"{VENT_TEMP} / {VENT_IN_NR}"),
         ("Robot", "USER / TOOL", f"{USER} / {TOOL}"),
         ("Robot", "RX, RY, RZ", f"{RX}, {RY}, {RZ}"),
         ("Brennervinkel", "SIDEVINKEL (grader)", SIDEVINKEL),
