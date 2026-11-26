@@ -91,6 +91,12 @@ def tolk_mappenavn(navn):
     Hvis forste tall er minst (L_7_80) tolkes det som FART_STROM og byttes om.
     Returnerer None hvis navnet ikke kan tolkes.
     """
+    # Testmatrisen: D1_B1, D12_B2 ... (kjoring D<nr>, blokk B<nr>). Strom/fart staar i
+    # testmatrisen, ikke i navnet, saa de settes tomme.
+    if re.fullmatch(r"D\d+_B\d+(_.*)?", navn, re.I):
+        return dict(type="Test", strom=None, fart=None, trad=STANDARD_TRAD_MM, overlapp=None,
+                    har_pl=False, torrkjoring=False, beskrivelse=navn, opprinnelig_navn=navn)
+
     deler = navn.split("_")
     type_ = "Rett"
     if deler[0].upper() in {"L", "U", "TEMP", "T"}:
